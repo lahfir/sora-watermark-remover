@@ -26,6 +26,12 @@ class ShimmerTextColumn(TextColumn):
     Custom text column with shimmer effect that shines through the text.
     """
 
+    def __init__(self):
+        """
+        Initialize shimmer text column.
+        """
+        super().__init__("{task.description}")
+
     def render(self, task):
         """
         Render text with animated shimmer effect.
@@ -33,7 +39,7 @@ class ShimmerTextColumn(TextColumn):
         import time
 
         text = task.description
-        shimmer_pos = (time.time() * 4) % (len(text) + 6)
+        shimmer_pos = (time.time() * 12) % (len(text) + 6)
 
         result_parts = []
         for i, char in enumerate(text):
@@ -73,7 +79,7 @@ class ShimmerBarColumn(BarColumn):
         bar_width = self.bar_width or 40
         filled_width = int(bar_width * completed / total) if total else 0
 
-        shimmer_pos = int((time.time() * 3) % bar_width)
+        shimmer_pos = int((time.time() * 10) % bar_width)
 
         bar_parts = []
         for i in range(bar_width):

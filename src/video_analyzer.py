@@ -26,6 +26,7 @@ class VideoMetadata:
         orientation: Video orientation ('landscape', 'portrait', or 'square')
         codec: Video codec identifier
     """
+
     width: int
     height: int
     fps: float
@@ -46,6 +47,7 @@ class WatermarkPosition:
         width: Width of watermark region
         height: Height of watermark region
     """
+
     x: int
     y: int
     width: int
@@ -57,8 +59,8 @@ class VideoAnalyzer:
     Analyzes video files to extract metadata and calculate watermark positions.
     """
 
-    WATERMARK_INTERVAL = 2.5
     POSITION_COUNT = 3
+    CYCLE_FRAMES = 227
 
     def __init__(self, video_path: str):
         """
@@ -99,22 +101,19 @@ class VideoAnalyzer:
             total_frames=total_frames,
             duration=duration,
             orientation=orientation,
-            codec=self._decode_fourcc(codec)
+            codec=self._decode_fourcc(codec),
         )
 
     def get_watermark_positions(
-        self,
-        metadata: VideoMetadata,
-        wm_width: int = 139,
-        wm_height: int = 51
+        self, metadata: VideoMetadata, wm_width: int = 139, wm_height: int = 51
     ) -> List[WatermarkPosition]:
         """
         Calculate the three watermark positions with exact pixel coordinates.
 
         Positions:
-        - Position 0: Top-left (x=32, y=85)
-        - Position 1: Center-right (x=video_width-width-32, y=602)
-        - Position 2: Bottom-left (x=32, y=video_height-44)
+        - Position 0: Top-left (x=20, y=75)
+        - Position 1: Center-right (x=video_width-width-10, y=592)
+        - Position 2: Bottom-left (x=32, y=video_height-195)
 
         Args:
             metadata: Video metadata containing width and height
@@ -125,31 +124,29 @@ class VideoAnalyzer:
             List of three WatermarkPosition objects
         """
         w, h = metadata.width, metadata.height
-        left_margin = 32
-        right_margin = 32
-        top_offset = 85
-        center_y = 602
-        bottom_offset = 44
+        left_margin_top = 20
+        left_margin_bottom = 25
+        right_margin = 10
+        top_offset = 75
+        center_y = 592
+        bottom_offset = 260
 
         positions = [
             WatermarkPosition(
-                x=left_margin,
-                y=top_offset,
-                width=wm_width,
-                height=wm_height
+                x=left_margin_top, y=top_offset, width=wm_width, height=wm_height
             ),
             WatermarkPosition(
                 x=w - wm_width - right_margin,
                 y=center_y,
                 width=wm_width,
-                height=wm_height
+                height=wm_height,
             ),
             WatermarkPosition(
-                x=left_margin,
+                x=left_margin_bottom,
                 y=h - bottom_offset,
                 width=wm_width,
-                height=wm_height
-            )
+                height=wm_height,
+            ),
         ]
 
         return positions
@@ -158,16 +155,26 @@ class VideoAnalyzer:
         """
         Determine which watermark position should be active for a given frame.
 
+        Frame-based position pattern (227-frame cycle):
+        - Position 0 (Top-left): Frames 0-65 (66 frames)
+        - Position 1 (Center-right): Frames 66-145 (80 frames)
+        - Position 2 (Bottom-left): Frames 146-226 (81 frames)
+
         Args:
             frame_number: Current frame number (0-indexed)
-            fps: Frames per second of the video
+            fps: Frames per second (unused, kept for API compatibility)
 
         Returns:
             Position index (0, 1, or 2)
         """
-        timestamp = frame_number / fps
-        position_cycle = math.floor(timestamp / self.WATERMARK_INTERVAL)
-        return position_cycle % self.POSITION_COUNT
+        cycle_frame = frame_number % self.CYCLE_FRAMES
+
+        if cycle_frame < 66:
+            return 0
+        elif cycle_frame < 146:
+            return 1
+        else:
+            return 2
 
     def _determine_orientation(self, width: int, height: int) -> str:
         """

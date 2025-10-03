@@ -7,6 +7,9 @@ to watermark regions that change position dynamically throughout the video.
 
 import cv2
 import numpy as np
+import subprocess
+import tempfile
+import os
 from typing import Optional, Callable
 from pathlib import Path
 
@@ -55,70 +58,113 @@ class WatermarkProcessor:
         """
         Process the video and apply blur to watermark regions.
 
+        Preserves audio from the original video.
+
         Args:
             progress_callback: Optional callback function(current_frame, total_frames)
 
         Raises:
             RuntimeError: If video processing fails
         """
-        with VideoAnalyzer(self.input_path) as analyzer:
-            metadata = analyzer.analyze()
-            positions = analyzer.get_watermark_positions(metadata, self.wm_width, self.wm_height)
+        temp_video = tempfile.mktemp(suffix='_video_only.mp4')
 
-            cap = cv2.VideoCapture(self.input_path)
+        try:
+            with VideoAnalyzer(self.input_path) as analyzer:
+                metadata = analyzer.analyze()
+                positions = analyzer.get_watermark_positions(metadata, self.wm_width, self.wm_height)
 
-            if not cap.isOpened():
-                raise RuntimeError(f"Failed to open video: {self.input_path}")
+                cap = cv2.VideoCapture(self.input_path)
 
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(
-                self.output_path,
-                fourcc,
-                metadata.fps,
-                (metadata.width, metadata.height)
-            )
+                if not cap.isOpened():
+                    raise RuntimeError(f"Failed to open video: {self.input_path}")
 
-            if not out.isOpened():
-                cap.release()
-                raise RuntimeError(f"Failed to create output video: {self.output_path}")
-
-            total_frames = metadata.total_frames
-            if self.preview_duration:
-                total_frames = min(
-                    total_frames,
-                    int(self.preview_duration * metadata.fps)
+                fourcc = cv2.VideoWriter_fourcc(*'avc1')
+                out = cv2.VideoWriter(
+                    temp_video,
+                    fourcc,
+                    metadata.fps,
+                    (metadata.width, metadata.height),
+                    params=[cv2.VIDEOWRITER_PROP_QUALITY, 100]
                 )
 
-            frame_number = 0
+                if not out.isOpened():
+                    cap.release()
+                    raise RuntimeError(f"Failed to create output video: {temp_video}")
 
-            try:
-                while frame_number < total_frames:
-                    ret, frame = cap.read()
-
-                    if not ret:
-                        break
-
-                    position_idx = analyzer.get_position_index_for_frame(
-                        frame_number,
-                        metadata.fps
-                    )
-                    current_position = positions[position_idx]
-
-                    blurred_frame = self._apply_blur_to_region(
-                        frame,
-                        current_position
+                total_frames = metadata.total_frames
+                if self.preview_duration:
+                    total_frames = min(
+                        total_frames,
+                        int(self.preview_duration * metadata.fps)
                     )
 
-                    out.write(blurred_frame)
+                frame_number = 0
 
-                    if progress_callback:
-                        progress_callback(frame_number + 1, total_frames)
+                try:
+                    while frame_number < total_frames:
+                        ret, frame = cap.read()
 
-                    frame_number += 1
+                        if not ret:
+                            break
 
-            finally:
-                cap.release()
-                out.release()
+                        position_idx = analyzer.get_position_index_for_frame(
+                            frame_number,
+                            metadata.fps
+                        )
+                        current_position = positions[position_idx]
+
+                        blurred_frame = self._apply_blur_to_region(
+                            frame,
+                            current_position
+                        )
+
+                        out.write(blurred_frame)
+
+                        if progress_callback:
+                            progress_callback(frame_number + 1, total_frames)
+
+                        frame_number += 1
+
+                finally:
+                    cap.release()
+                    out.release()
+
+            self._merge_audio(temp_video, self.input_path, self.output_path)
+
+        finally:
+            if os.path.exists(temp_video):
+                os.remove(temp_video)
+
+    def _merge_audio(self, video_file: str, audio_source: str, output_file: str):
+        """
+        Merge audio from source video with processed video using FFmpeg.
+
+        Uses high-quality H.264 encoding with CRF 18 for near-lossless quality.
+
+        Args:
+            video_file: Path to processed video (no audio)
+            audio_source: Path to original video (with audio)
+            output_file: Path to final output video
+        """
+        ffmpeg_cmd = [
+            'ffmpeg', '-y',
+            '-i', video_file,
+            '-i', audio_source,
+            '-map', '0:v:0',
+            '-map', '1:a:0?',
+            '-c:v', 'libx264',
+            '-crf', '18',
+            '-preset', 'slow',
+            '-c:a', 'aac',
+            '-b:a', '320k',
+            '-shortest',
+            output_file
+        ]
+
+        try:
+            subprocess.run(ffmpeg_cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"FFmpeg audio merge failed: {e.stderr}")
 
     def _apply_blur_to_region(
         self,
