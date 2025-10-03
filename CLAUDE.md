@@ -1,0 +1,1 @@
+- clean, modular code. Never add comments, always refer latest documentation for latest coding. A file should not cross 400 LOC. Use modular docstrings if needed.
