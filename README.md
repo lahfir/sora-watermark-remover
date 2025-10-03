@@ -4,7 +4,7 @@ A powerful CLI tool to remove or blur dynamic watermarks from videos. Handles wa
 
 ## Features
 
-- **Dynamic Position Tracking**: Automatically handles watermarks that change position every 2.3 seconds
+- **Dynamic Position Tracking**: Automatically handles watermarks that change position every 2.5 seconds
 - **Three Position Support**: Top-left → Center-right → Bottom-left
 - **Smart Blur**: Gaussian blur with feathered edges for seamless blending
 - **Advanced Mode**: Edge-aware bilateral filtering for better quality
@@ -22,11 +22,13 @@ A powerful CLI tool to remove or blur dynamic watermarks from videos. Handles wa
 ### Install FFmpeg
 
 **macOS:**
+
 ```bash
 brew install ffmpeg
 ```
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt update
 sudo apt install ffmpeg
@@ -39,11 +41,6 @@ Download from [ffmpeg.org](https://ffmpeg.org/download.html)
 
 ```bash
 pip install -r requirements.txt
-```
-
-Or using the package:
-```bash
-pip install -e .
 ```
 
 ## Usage
@@ -78,6 +75,12 @@ python main.py input.mp4 output.mp4 --preview 10
 python main.py input.mp4 output.mp4 --info
 ```
 
+### Custom Dimensions and Blur
+
+```bash
+python main.py input.mp4 output.mp4 -w 180 -h 65 -b 75
+```
+
 ### Combined Options
 
 ```bash
@@ -86,31 +89,38 @@ python main.py input.mp4 output.mp4 -b 65 -a -p 15
 
 ## Options
 
-| Option | Short | Description | Default |
-|--------|-------|-------------|---------|
-| `--blur-intensity` | `-b` | Blur kernel size (must be odd) | 51 |
-| `--advanced` | `-a` | Use edge-aware blur | False |
-| `--preview` | `-p` | Process only first N seconds | None |
-| `--info` | `-i` | Show video info and exit | False |
+| Option             | Short | Description                    | Default |
+| ------------------ | ----- | ------------------------------ | ------- |
+| `--blur-intensity` | `-b`  | Blur kernel size (must be odd) | 51      |
+| `--width`          | `-w`  | Watermark width in pixels      | 139     |
+| `--height`         | `-h`  | Watermark height in pixels     | 51      |
+| `--advanced`       | `-a`  | Use edge-aware blur            | False   |
+| `--preview`        | `-p`  | Process only first N seconds   | None    |
+| `--info`           | `-i`  | Show video info and exit       | False   |
 
 ## How It Works
 
 1. **Video Analysis**: Extracts metadata (FPS, resolution, duration, orientation)
-2. **Position Calculation**: Determines watermark position for each frame based on 2.3s interval
+2. **Position Calculation**: Determines watermark position for each frame based on 2.5s interval
 3. **Blur Application**: Applies Gaussian or bilateral blur to watermark regions
 4. **Feathered Blending**: Uses smooth edge transitions for natural appearance
 5. **Video Encoding**: Outputs processed video with original quality settings
 
 ## Watermark Positions
 
-The tool automatically calculates three positions based on your video dimensions:
+The tool uses precise pixel coordinates for watermark detection:
 
-- **Position 0** (0.0-2.3s): Top-left corner
-- **Position 1** (2.3-4.6s): Center-right
-- **Position 2** (4.6-6.9s): Bottom-left
-- *Repeats...*
+- **Position 0** (0.0-2.5s): Top-left at x=32, y=85
+- **Position 1** (2.5-5.0s): Center-right at x=(width-171), y=602
+- **Position 2** (5.0-7.5s): Bottom-left at x=32, y=(height-193)
+- _Repeats every 7.5 seconds..._
 
-Each position is sized at approximately 15% of video width and 8% of video height.
+Default watermark dimensions are **139×51 pixels** (customizable via `--width` and `--height`):
+
+- **Left positions**: 32px from left edge
+- **Top position**: 85px from top
+- **Bottom position**: 193px from bottom
+- **Right position**: 32px from right edge, 602px from top
 
 ## Architecture
 
@@ -123,23 +133,25 @@ sora-watermark-remover/
 │   └── cli.py                 # Command-line interface
 ├── main.py                    # Entry point
 ├── requirements.txt
-├── pyproject.toml
 └── README.md
 ```
 
 ## Examples
 
 ### Quick Test
+
 ```bash
 python main.py sample.mp4 test.mp4 -p 5
 ```
 
 ### High Quality Processing
+
 ```bash
 python main.py input.mp4 output.mp4 -b 75 --advanced
 ```
 
 ### Check Video First
+
 ```bash
 python main.py input.mp4 output.mp4 --info
 ```
@@ -147,13 +159,16 @@ python main.py input.mp4 output.mp4 --info
 ## Troubleshooting
 
 **Error: "Blur intensity must be a positive odd number"**
+
 - Use odd numbers only: 51, 75, 101, etc.
 
 **Error: "Cannot open video file"**
+
 - Check if FFmpeg is installed: `ffmpeg -version`
 - Verify file exists and is a valid video format
 
 **Output quality is poor**
+
 - Try `--advanced` mode for better edge preservation
 - Increase blur intensity for stronger effect
 - Decrease blur intensity for more subtle effect

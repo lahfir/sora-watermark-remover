@@ -8,6 +8,7 @@ watermark position timeline based on a 2.3-second interval pattern.
 
 from dataclasses import dataclass
 from typing import Tuple, List
+import cv2
 import math
 
 
@@ -56,7 +57,7 @@ class VideoAnalyzer:
     Analyzes video files to extract metadata and calculate watermark positions.
     """
 
-    WATERMARK_INTERVAL = 2.3
+    WATERMARK_INTERVAL = 2.5
     POSITION_COUNT = 3
 
     def __init__(self, video_path: str):
@@ -70,10 +71,10 @@ class VideoAnalyzer:
             ValueError: If video file cannot be opened
         """
         self.video_path = video_path
-        # self.cap = cv2.VideoCapture(video_path)
+        self.cap = cv2.VideoCapture(video_path)
 
-        # if not self.cap.isOpened():
-        #     raise ValueError(f"Cannot open video file: {video_path}")
+        if not self.cap.isOpened():
+            raise ValueError(f"Cannot open video file: {video_path}")
 
     def analyze(self) -> VideoMetadata:
         """
@@ -82,14 +83,12 @@ class VideoAnalyzer:
         Returns:
             VideoMetadata object containing all video properties
         """
-        # Mocking cv2.VideoCapture properties for now
-        # Replace with actual cv2 calls once the import issue is resolved
-        width = 1920  # Placeholder
-        height = 1080 # Placeholder
-        fps = 30.0    # Placeholder
-        total_frames = 900 # Placeholder (30 seconds * 30 fps)
+        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = self.cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration = total_frames / fps if fps > 0 else 0
-        codec = 875967078 # Placeholder for 'avc1'
+        codec = int(self.cap.get(cv2.CAP_PROP_FOURCC))
 
         orientation = self._determine_orientation(width, height)
 
@@ -103,42 +102,51 @@ class VideoAnalyzer:
             codec=self._decode_fourcc(codec)
         )
 
-    def get_watermark_positions(self, metadata: VideoMetadata) -> List[WatermarkPosition]:
+    def get_watermark_positions(
+        self,
+        metadata: VideoMetadata,
+        wm_width: int = 139,
+        wm_height: int = 51
+    ) -> List[WatermarkPosition]:
         """
-        Calculate the three watermark positions based on video dimensions.
+        Calculate the three watermark positions with exact pixel coordinates.
 
         Positions:
-        - Position 0: Top-left
-        - Position 1: Center-right
-        - Position 2: Bottom-left
+        - Position 0: Top-left (x=32, y=85)
+        - Position 1: Center-right (x=video_width-width-32, y=602)
+        - Position 2: Bottom-left (x=32, y=video_height-193)
 
         Args:
             metadata: Video metadata containing width and height
+            wm_width: Watermark width in pixels (default: 139)
+            wm_height: Watermark height in pixels (default: 51)
 
         Returns:
             List of three WatermarkPosition objects
         """
         w, h = metadata.width, metadata.height
-        wm_width = int(w * 0.15)
-        wm_height = int(h * 0.08)
-        padding = 20
+        left_margin = 32
+        right_margin = 32
+        top_offset = 85
+        center_y = 602
+        bottom_offset = 193
 
         positions = [
             WatermarkPosition(
-                x=padding,
-                y=padding,
+                x=left_margin,
+                y=top_offset,
                 width=wm_width,
                 height=wm_height
             ),
             WatermarkPosition(
-                x=w - wm_width - padding,
-                y=(h - wm_height) // 2,
+                x=w - wm_width - right_margin,
+                y=center_y,
                 width=wm_width,
                 height=wm_height
             ),
             WatermarkPosition(
-                x=padding,
-                y=h - wm_height - padding,
+                x=left_margin,
+                y=h - bottom_offset,
                 width=wm_width,
                 height=wm_height
             )

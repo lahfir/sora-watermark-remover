@@ -23,7 +23,9 @@ class WatermarkProcessor:
         input_path: str,
         output_path: str,
         blur_intensity: int = 51,
-        preview_duration: Optional[float] = None
+        preview_duration: Optional[float] = None,
+        wm_width: int = 139,
+        wm_height: int = 51
     ):
         """
         Initialize the watermark processor.
@@ -33,6 +35,8 @@ class WatermarkProcessor:
             output_path: Path to output video file
             blur_intensity: Kernel size for Gaussian blur (must be odd)
             preview_duration: If set, only process first N seconds
+            wm_width: Watermark width in pixels
+            wm_height: Watermark height in pixels
 
         Raises:
             ValueError: If blur_intensity is not a positive odd number
@@ -44,6 +48,8 @@ class WatermarkProcessor:
         self.output_path = output_path
         self.blur_intensity = blur_intensity
         self.preview_duration = preview_duration
+        self.wm_width = wm_width
+        self.wm_height = wm_height
 
     def process(self, progress_callback: Optional[Callable[[int, int], None]] = None):
         """
@@ -57,7 +63,7 @@ class WatermarkProcessor:
         """
         with VideoAnalyzer(self.input_path) as analyzer:
             metadata = analyzer.analyze()
-            positions = analyzer.get_watermark_positions(metadata)
+            positions = analyzer.get_watermark_positions(metadata, self.wm_width, self.wm_height)
 
             cap = cv2.VideoCapture(self.input_path)
 

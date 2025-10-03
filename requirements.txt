@@ -3,3 +3,4 @@ ffmpeg-python>=0.2.0
 click>=8.1.7
 rich>=13.7.0
 numpy>=1.26.0
+protobuf==4.25.3
