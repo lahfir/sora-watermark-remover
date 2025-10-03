@@ -83,8 +83,7 @@ class WatermarkProcessor:
                     temp_video,
                     fourcc,
                     metadata.fps,
-                    (metadata.width, metadata.height),
-                    params=[cv2.VIDEOWRITER_PROP_QUALITY, 100]
+                    (metadata.width, metadata.height)
                 )
 
                 if not out.isOpened():
