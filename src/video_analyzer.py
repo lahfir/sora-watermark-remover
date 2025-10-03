@@ -114,7 +114,7 @@ class VideoAnalyzer:
         Positions:
         - Position 0: Top-left (x=32, y=85)
         - Position 1: Center-right (x=video_width-width-32, y=602)
-        - Position 2: Bottom-left (x=32, y=video_height-193)
+        - Position 2: Bottom-left (x=32, y=video_height-44)
 
         Args:
             metadata: Video metadata containing width and height
@@ -129,7 +129,7 @@ class VideoAnalyzer:
         right_margin = 32
         top_offset = 85
         center_y = 602
-        bottom_offset = 193
+        bottom_offset = 44
 
         positions = [
             WatermarkPosition(

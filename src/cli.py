@@ -12,12 +12,43 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.style import Style
 from rich.progress_bar import ProgressBar
+from rich.text import Text
 
 from src.video_analyzer import VideoAnalyzer
 from src.watermark_processor import WatermarkProcessor, AdvancedWatermarkProcessor
 
 
 console = Console()
+
+
+class ShimmerTextColumn(TextColumn):
+    """
+    Custom text column with shimmer effect that shines through the text.
+    """
+
+    def render(self, task):
+        """
+        Render text with animated shimmer effect.
+        """
+        import time
+
+        text = task.description
+        shimmer_pos = (time.time() * 4) % (len(text) + 6)
+
+        result_parts = []
+        for i, char in enumerate(text):
+            distance = abs(i - shimmer_pos)
+
+            if distance < 1.5:
+                result_parts.append(f'[bold white]{char}[/bold white]')
+            elif distance < 3:
+                result_parts.append(f'[white]{char}[/white]')
+            elif distance < 4.5:
+                result_parts.append(f'[bright_cyan]{char}[/bright_cyan]')
+            else:
+                result_parts.append(f'[bold cyan]{char}[/bold cyan]')
+
+        return Text.from_markup(''.join(result_parts))
 
 
 class ShimmerBarColumn(BarColumn):
@@ -171,7 +202,7 @@ def remove_watermark(
 
             with Progress(
                 SpinnerColumn(),
-                TextColumn("[bold cyan]{task.description}"),
+                ShimmerTextColumn(),
                 ShimmerBarColumn(bar_width=50),
                 TextColumn("[bold white]{task.percentage:>3.0f}%"),
                 TimeElapsedColumn(),

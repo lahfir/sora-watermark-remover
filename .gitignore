@@ -45,3 +45,4 @@ htmlcov/
 
 .claude/
 .vscode/
+.CLAUDE.md
